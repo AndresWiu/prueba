@@ -1,0 +1,53 @@
+from __future__ import print_function
+import numpy as np
+import cv2
+import time
+
+cascade = cv2.CascadeClassifier('haarcascade_eye.xml') #cascade del ojo
+#Se usa la cámara
+camara = cv2.VideoCapture(0)
+
+#mientras no se presione "q"
+while True:
+
+    #leer cuadro por cuadro
+    (_, cuadro) = camara.read() #lectura de cámara
+    #salida = cuadro.copy()
+    gris = cv2.cvtColor(cuadro, cv2.COLOR_BGR2GRAY) # imágenes a escala de grises
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    equ = clahe.apply(gris)
+    borr = cv2.GaussianBlur(equ, (3,3), 0) #imagen borrosa
+    deteccion = cascade.detectMultiScale(borr, 1.3, 10) #identificación del ojo
+     
+    for (x,y,w,h) in deteccion: #x=190, w=180, y=180, h=120
+        
+        #equ = cv2.equalizeHist(gris.copy()) #mejor distribución de pixeles
+        
+        rec = borr[y:y+h, x:x+w] #recorte al ojo
+        reojo = cv2.resize(rec, (180, 120)) #cuadro constante
+        
+
+        (T, thresh) = cv2.threshold(reojo, 30, 255, cv2.THRESH_BINARY)
+        copia = thresh.copy()
+        
+        circulos = cv2.HoughCircles(thresh, cv2.HOUGH_GRADIENT, 4, 200) #indentificación y parámetros de circulos
+        
+        if circulos is not None:
+            circulos = np.round(circulos[0,:]).astype(int) #convertir la tupla en entero
+
+            for (x,y,r) in circulos:
+                cv2.circle(copia, (x,y), r, (0,255,0), 2)
+                cv2.rectangle(copia, (x-5, y-5), (x+5, y+5), (0,255,0), -1)
+        
+
+    #lim = cv2.Canny(reojo, 30, 150)
+    #(_, circun, _) = cv2.findContours(lim.copy(), cv2.RETR_EXTERNAL, cv2. CHAIN_APPROX_SIMPLE)
+
+    #circ = reojo.copy()
+    #cv2.drawContours(reojo, circun, -1, (0,255,0), 2)
+    cv2.imshow("prueba", cv2.flip(copia, 1)) #agregar catch si no encuentra el ojo y señal de alerta
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+camara.release()
+cv2.destroyAllWindows()
